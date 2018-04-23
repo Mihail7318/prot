@@ -23,7 +23,7 @@ typedef struct{
 } 
 RbSerCmdDesc_t;
 
-#define RbSer_CmdQty 6
+#define RbSer_CmdQty 8
 
 typedef enum {
   BUS_TEST=0,
@@ -32,18 +32,21 @@ typedef enum {
   SERVO_SET_STATE=3,
   SERVO_PROT_SET=4,
   SERVO_PROT_GET=5,
-}
-RbSerCmdName_t; 
+  ACCEL_GIRO_GET=6,
+  FORCE_GET=7,
+}RbSerCmdName_t; 
 
 
 const RbSerCmdDesc_t RbSerCmdDesc[RbSer_CmdQty]=
 {
-  {.Code=BUS_TEST,              .M_Len=0,.S_Len=4}, //BUS_TEST
-  {.Code=SERVO_STATE,           .M_Len=1,.S_Len=5}, //SERVO_STATE
-  {.Code=SERVO_SET_POS,         .M_Len=6,.S_Len=2}, //SERVO_SET_POS
-  {.Code=SERVO_SET_STATE,       .M_Len=3,.S_Len=2}, //SERVO_SET_STATE
-  {.Code=SERVO_PROT_SET,        .M_Len=11,.S_Len=2},//SERVO_PROT_SET
-  {.Code=SERVO_PROT_GET,        .M_Len=1,.S_Len=14},//SERVO_PROT_GET
+  {.Code=BUS_TEST,              .M_Len=0,       .S_Len=4},      //BUS_TEST
+  {.Code=SERVO_STATE,           .M_Len=1,       .S_Len=5},      //SERVO_STATE
+  {.Code=SERVO_SET_POS,         .M_Len=6,       .S_Len=2},      //SERVO_SET_POS
+  {.Code=SERVO_SET_STATE,       .M_Len=3,       .S_Len=2},      //SERVO_SET_STATE
+  {.Code=SERVO_PROT_SET,        .M_Len=11,      .S_Len=2},      //SERVO_PROT_SET
+  {.Code=SERVO_PROT_GET,        .M_Len=1,       .S_Len=14},     //SERVO_PROT_GET
+  {.Code=ACCEL_GIRO_GET,        .M_Len=0,       .S_Len=12},     //ACCEL_GIRO_GET
+  {.Code=FORCE_GET,             .M_Len=0,       .S_Len=12},     //FORSE_GET
 };
 
 uint8_t  RbSer_rxstage=0;                 //Stage of parse command
@@ -386,6 +389,40 @@ int RbSer_Servo_Prot_Get(uint8_t ID, uint16_t *Min, uint16_t *Max, int8_t *Adj, 
     }
     return 0;
 }
+
+int RbSer_Accel_Giro_Get(int16_t *Accel, int16_t *Giro){
+    if(Cmd_Tx(ACCEL_GIRO_GET)){
+        if(Cmd_Rx(ACCEL_GIRO_GET)){
+          uint8_t low=0; 
+          uint8_t high=1;
+          for(uint8_t i=0;i<3;i++){
+            Accel[i]=data[high]; Accel[i]<<=8; Accel[i]+=data[low];
+            high+=2; low+=2;
+          }
+          for(uint8_t i=0;i<3;i++){
+            Giro[i]=data[high]; Giro[i]<<=8; Giro[i]+=data[low];
+            high+=2; low+=2;
+          }
+          return 1;
+        }
+    }
+    return 0;
+}
+
+int RbSer_Force_Get(uint16_t *Force){
+    if(Cmd_Tx(FORCE_GET)){
+        if(Cmd_Rx(FORCE_GET)){
+          uint8_t low=0; 
+          uint8_t high=1;
+          for(uint8_t i=0;i<6;i++){
+            Force[i]=data[high]; Force[i]<<=8; Force[i]+=data[low];
+            high+=2; low+=2;
+          }
+          return 1;
+        }
+    }
+    return 0;
+}
 #endif //RbSerMaster>0
 
 /*  Public slave (STM32) functions */
@@ -411,6 +448,12 @@ void RbSer_callback(uint8_t Code){
     break;}
     case SERVO_PROT_GET:{
     Servo_Prot_Get(&data[0]);
+    break;} 
+    case ACCEL_GIRO_GET:{
+    Accel_Giro_Get(&data[0]);
+    break;} 
+    case FORCE_GET:{
+    Force_Get(&data[0]);
     break;} 
   }
 }

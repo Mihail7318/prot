@@ -90,6 +90,26 @@ int RbSer_Servo_Prot_Get(uint8_t ID, uint16_t *Min, uint16_t *Max, int8_t *Adj, 
 
 /*! @} */
 
+/*! \defgroup Sensors
+     \ingroup Protocol functions for master (Orange Pi / PC)
+    @{
+*/
+
+/*! Accelerometer / gyroscope sensors get 
+ * \param[out] Accel - pointer to an array X,Y,Z acceleration (signed) [-2g,2g] in 0.001g
+ * \param[out] Giro - pointer to an array X,Y,Z rotate speed (signed) [-250dps,250dps] in 0.01dps
+ * \return - 1 slave process command,  0 no data
+*/
+int RbSer_Accel_Giro_Get(int16_t *Accel, int16_t *Giro);
+
+/*! Force sensors get 
+ * \param[out] Forse - pointer to an array of 6 force values (unsigned) [0,50N] in 0.01N
+ * \return - 1 slave process command,  0 no data
+*/
+int RbSer_Force_Get(uint16_t *Force);
+
+/*! @} */
+
 /*! @} */
 
 /*! \defgroup Platform specific functions for master (Orange Pi / PC) 

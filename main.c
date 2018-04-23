@@ -22,7 +22,7 @@ void MaserLogAddComment(uint8_t* data);
 
 int main(int argc, char **argv)
 {
-    #define version_string "0.1"
+    #define version_string "0.2"
     #define baund (int)115200
 
     #define Param_Q 11
@@ -79,6 +79,14 @@ int main(int argc, char **argv)
     uint8_t start_cmd=0;
     uint8_t stop_cmd=0;
     
+    //Sensors data
+    int16_t Accel[3];
+    int16_t Giro[3];
+    uint16_t Force[6];
+    
+    uint8_t NoAccel=1;
+    uint8_t NoForce=1;
+    
     int PortN=0;
     char port[20];
     DCB dcbSerialParams = {0};
@@ -90,10 +98,9 @@ int main(int argc, char **argv)
     while(1){
         switch(state){
             case PORT_SEL:{
+                system("cls");
                 printf("Robot Console Protocol Tester v %s\n",version_string);
-                printf("================================================\n");
-                printf("COM port selection\n");
-                printf("================================================\n\n");
+                printf("\nCOM port selection =============================\n");
                 
                 printf("Select Port number (between 1 and 99):");
                 
@@ -222,6 +229,18 @@ int main(int argc, char **argv)
                 if(read_cmd){
                     MaserLogAddComment("read\0");
                     bat_flag=RbSer_bus_test(&Bat,&v5V1,&v5V2)?1:0;
+                    if(RbSer_Accel_Giro_Get(Accel,Giro)){
+                        NoAccel=0;
+                    }
+                    else{
+                        NoAccel=1;
+                    }
+                    if(RbSer_Force_Get(Force)){
+                        NoForce=0;
+                    }
+                    else{
+                        NoForce=1;
+                    }
                     uint8_t Temp[2];
                     if(RbSer_Servo_State((uint8_t)Param[ID].write,&servo_State,&Temp[0],&Param[POS].read)){
                         Param[ON].read=Temp[0];
@@ -237,8 +256,8 @@ int main(int argc, char **argv)
                 //Show UI
                 system("cls");
                 printf("Robot Console Protocol Tester v %s\n",version_string);
-                printf("================================================\n");
-                printf("Connected to: COM%d (%d-8-N-1)\n",PortN,baund);
+                printf("Connected to: COM%-2d (%-6d-8-N-1)\n",PortN,baund);
+                printf("\nStatus =========================================\n");
                 if(bat_flag)
                 {
                    printf("STATUS: Bat: %.2f ",((float)Bat)/1000.0);
@@ -251,10 +270,24 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                   printf("NO STATUS DATA\n",PortN,baund);
+                   printf("NO STATUS DATA\n");
                 }
-                printf("Servo test\n");
-                printf("================================================\n\n");
+                printf("\nSensors ========================================\n");
+                if(NoAccel==0){
+                    printf("%-12s  X=%-8.3f  Y=%-8.3f  Z=%-8.3f\n","Accel[g]:",((float)Accel[0])/10000.0,((float)Accel[1])/10000.0,((float)Accel[2])/10000.0);
+                    printf("%-12s  X=%-8.3f  Y=%-8.3f  Z=%-8.3f\n","Giro[dps]:",((float)Giro[0])/100.0,((float)Giro[1])/100.0,((float)Giro[2])/100.0);
+                }
+                else{
+                    printf("NO ACCEL/GIRO DATA\n");
+                }
+                if(NoForce==0){
+                printf("%-12s F1=%-8.2f F2=%-8.2f F3=%-8.2f\n","Force[N]:",((float)Force[0])/100.0,((float)Force[1])/100.0,((float)Force[2])/100.0);
+                printf("%-12s F4=%-8.2f F5=%-8.2f F6=%-8.2f\n"," ",((float)Force[3])/100.0,((float)Force[4])/100.0,((float)Force[5])/100.0);
+                }
+                else{
+                    printf("NO FORCE DATA\n");
+                }
+                printf("\nServo test =====================================\n");
                 if(servo_State!=0xFF){
                 printf("%s Servo ID: %02d [CONNECTED]\n",cursor==ID?"[>]":"[ ]",Param[ID].write);
                 printf("    %.2f V %s - %d Deg %s - Rotor %s - %02x \n",
@@ -311,84 +344,84 @@ int main(int argc, char **argv)
                 
                 //Process KEY
                 do{
-                update_disp=1;
-                char character=getch();
-                switch(character)
-                {
-                    case 'W':  
-                    case 'w': { //Up
-                     if(servo_State!=0xFF){
-                         if(cursor){cursor--;}
-                         else{cursor=Param_Q-1;}
-                     }
-                     else{
-                         cursor=0;
-                     }
-                     break;
+                    update_disp=1;
+                    char character=getch();
+                    switch(character)
+                    {
+                        case 'W':  
+                        case 'w': { //Up
+                         if(servo_State!=0xFF){
+                             if(cursor){cursor--;}
+                             else{cursor=Param_Q-1;}
+                         }
+                         else{
+                             cursor=0;
+                         }
+                         break;
+                        }
+                        case 'S':  
+                        case 's': { //Down
+                         if(servo_State!=0xFF){
+                             cursor++;
+                             if(cursor==Param_Q){cursor=0;}
+                         }
+                         else{
+                             cursor=0;
+                         }
+                         break;
+                        }
+                        case 'D':  
+                        case 'd': { //Right
+                         Param[cursor].write+=Param[cursor].inc;
+                         if(Param[cursor].write>Param[cursor].max){
+                            Param[cursor].write=Param[cursor].max;
+                         }
+                         if(cursor==0){
+                          read_cmd=1;
+                         }
+                         break;
+                        }
+                        case 'A':  
+                        case 'a': { //Left
+                         Param[cursor].write-=Param[cursor].inc;
+                         if(Param[cursor].write<Param[cursor].min){
+                            Param[cursor].write=Param[cursor].min;
+                         }
+                         if(cursor==0){
+                          read_cmd=1;
+                         }
+                         break;
+                        }
+                        case 'Z':  
+                        case 'z': {
+                         read_cmd=1;
+                         break;
+                        }
+                        case 'C':  
+                        case 'c': {
+                         write_cmd=1;
+                         break;
+                        }
+                        case 'Q':  
+                        case 'q': {
+                         start_cmd=1;
+                         break;
+                        }
+                        case 'E':  
+                        case 'e': {
+                         stop_cmd=1;
+                         break;
+                        }
+                        default:
+                        { update_disp=0;}
                     }
-                    case 'S':  
-                    case 's': { //Down
-                     if(servo_State!=0xFF){
-                         cursor++;
-                         if(cursor==Param_Q){cursor=0;}
-                     }
-                     else{
-                         cursor=0;
-                     }
-                     break;
+                    
+                    if(Param[POS_MAX].write<Param[POS_MIN].write){
+                        Param[POS_MIN].write=Param[POS_MIN].min;
                     }
-                    case 'D':  
-                    case 'd': { //Right
-                     Param[cursor].write+=Param[cursor].inc;
-                     if(Param[cursor].write>Param[cursor].max){
-                        Param[cursor].write=Param[cursor].max;
-                     }
-                     if(cursor==0){
-                      read_cmd=1;
-                     }
-                     break;
+                    if(Param[POS_MAX].write<Param[POS_MIN].write){
+                        Param[POS_MAX].write=Param[POS_MAX].max;
                     }
-                    case 'A':  
-                    case 'a': { //Left
-                     Param[cursor].write-=Param[cursor].inc;
-                     if(Param[cursor].write<Param[cursor].min){
-                        Param[cursor].write=Param[cursor].min;
-                     }
-                     if(cursor==0){
-                      read_cmd=1;
-                     }
-                     break;
-                    }
-                    case 'Z':  
-                    case 'z': {
-                     read_cmd=1;
-                     break;
-                    }
-                    case 'C':  
-                    case 'c': {
-                     write_cmd=1;
-                     break;
-                    }
-                    case 'Q':  
-                    case 'q': {
-                     start_cmd=1;
-                     break;
-                    }
-                    case 'E':  
-                    case 'e': {
-                     stop_cmd=1;
-                     break;
-                    }
-                    default:
-                    { update_disp=0;}
-                }
-                
-                if(Param[POS_MAX].write<Param[POS_MIN].write){
-                    Param[POS_MIN].write=Param[POS_MIN].min;
-                }
-                if(Param[POS_MAX].write<Param[POS_MIN].write){
-                    Param[POS_MAX].write=Param[POS_MAX].max;
-                }
                 
                 }while(!update_disp);
                 
